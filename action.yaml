@@ -13,7 +13,7 @@ inputs:
   password:
     description: 'Docker Hub password or token'
     required: true
-  Project:
+  project:
     description: 'Docker image name (e.g., edgeforge/erm)'
     required: true
   platforms:

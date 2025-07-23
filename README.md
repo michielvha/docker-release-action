@@ -53,7 +53,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-          Project: 'my-app'
+          project: 'my-app'
 ```
 
 ### Advanced Example
@@ -90,7 +90,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-          Project: 'my-app'
+          project: 'my-app'
           platforms: 'linux/amd64,linux/arm64'
           context: './src'
       
