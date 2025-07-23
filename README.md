@@ -138,7 +138,7 @@ Use this action with GitVersion to automatically set the `GITVERSION_SEMVER` env
 
 ```yaml
 - name: Tag with GitVersion
-  uses: michielvha/gitversion-tag-action@v3
+  uses: michielvha/gitversion-tag-action@v5
   with:
     configFilePath: 'gitversion.yml'
 ```
@@ -148,27 +148,39 @@ Use this action with GitVersion to automatically set the `GITVERSION_SEMVER` env
 Create a `gitversion.yml` file in your repository root:
 
 ```yaml
-mode: MainLine
+# https://gitversion.net/docs/reference/configuration
+# manually verify with `gitversion (/showconfig)`
+# IMPORTANT: on initial onboarding comment out everything but workflow after first run you can put it back
+workflow: GitHubFlow/v1
+# Custom strategies - this differs from default
+
+strategies:
+  - MergeMessage
+  - TaggedCommit
+  - TrackReleaseBranches
+  - VersionInBranchName
 branches:
   main:
-    regex: ^main$
-    increment: Minor
-    prevent-increment-of-merged-branch-version: true
-    tag: ''
+    regex: ^master$|^main$
+    increment: Patch
+    prevent-increment:
+      of-merged-branch: true
     track-merge-target: false
-    tracks-release-branches: false
+    track-merge-message: true
+    is-main-branch: true
+    mode: ContinuousDeployment # also do it here
+  release:
+    # Custom release branch configuration
+    regex: ^release/(?<BranchName>[0-9]+\.[0-9]+\.[0-9]+)$
+    label: ''
+    increment: None
+    prevent-increment:
+      when-current-commit-tagged: true
+      of-merged-branch: true
     is-release-branch: true
-  feature:
-    regex: ^features?[/-]
-    increment: Minor
-    prevent-increment-of-merged-branch-version: false
-    tag: 'feat'
-    track-merge-target: false
-    tracks-release-branches: false
-    is-release-branch: false
-ignore:
-  sha: []
-merge-message-formats: {}
+    mode: ContinuousDeployment # do not use ContinuousDelivery, else it will increment the version with a suffix on each commit.
+    source-branches:
+      - main
 ```
 
 ### 4. Repository Permissions
