@@ -86,7 +86,7 @@ jobs:
 
       - name: Build and Push Docker Image
         id: docker-build
-        uses: michielvha/release-action@v1
+        uses: michielvha/docker-release-action@v1
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
