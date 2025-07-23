@@ -1,5 +1,5 @@
-name: 'Build and Publish Docker Image'
-description: 'A reusable action to build and publish Docker images with automatic version detection'
+name: 'Build and release a Docker Image'
+description: 'A reusable action to build and release Docker images with automatic version detection'
 
 author: 'michielvha'
 branding:
