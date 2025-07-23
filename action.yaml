@@ -7,6 +7,10 @@ branding:
   color: blue
 
 inputs:
+  version:
+    description: 'GitVersion version to use'
+    required: false
+    default: 'dev'
   username:
     description: 'Docker Hub username'
     required: true
@@ -49,7 +53,7 @@ runs:
         context: ${{ inputs.context }}
         push: true
         tags: |
-          ${{ inputs.username }}/${{ inputs.project }}:${{ env.GITVERSION_SEMVER }}
+          ${{ inputs.username }}/${{ inputs.project }}:${{ inputs.version }}
           ${{ inputs.username }}/${{ inputs.project }}:latest
           ${{ inputs.username }}/${{ inputs.project }}:${{ github.sha }}
         platforms: ${{ inputs.platforms }}
