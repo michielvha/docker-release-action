@@ -31,7 +31,7 @@ jobs:
         id: docker-build
         uses: michielvha/docker-release-action@v1
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
+          username: <your_username> # do not use a secret here, only variables will work. Secrets cannot be used here to create the docker upload path.
           password: ${{ secrets.DOCKER_PASSWORD }}
           project: 'erm'
           platforms: 'linux/amd64'

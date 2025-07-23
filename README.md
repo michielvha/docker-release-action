@@ -51,7 +51,7 @@ jobs:
       - name: Build and Push Docker Image
         uses: michielvha/release-action@v1
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
+          username: <your_username>
           password: ${{ secrets.DOCKER_PASSWORD }}
           project: 'my-app'
 ```
@@ -88,7 +88,7 @@ jobs:
         id: docker-build
         uses: michielvha/docker-release-action@v1
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
+          username: <your_username>
           password: ${{ secrets.DOCKER_PASSWORD }}
           project: 'my-app'
           platforms: 'linux/amd64,linux/arm64'
