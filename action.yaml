@@ -1,11 +1,9 @@
 name: 'Build and release a Docker Image'
 description: 'A reusable action to build and release Docker images with automatic version detection'
-
 author: 'michielvha'
 branding:
   icon: arrow-right-circle
   color: blue
-
 inputs:
   version:
     description: 'GitVersion version to use'
@@ -28,12 +26,13 @@ inputs:
     description: 'Docker build context'
     required: false
     default: '.'
-
+  build-args:
+    description: 'Additional build arguments to pass to Docker build (multiline string, e.g., "ARG1=value1\nARG2=value2"). IMAGE_NAME will be automatically set to the project name.'
+    required: false
 outputs:
   image-digest:
     description: 'Docker image digest'
     value: ${{ steps.build-push.outputs.digest }}
-
 runs:
   using: 'composite'
   steps:
@@ -42,10 +41,8 @@ runs:
       with:
         username: ${{ inputs.username }}
         password: ${{ inputs.password }}
-
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-
     - name: Build and push Docker image
       id: build-push
       uses: docker/build-push-action@v5
@@ -57,7 +54,9 @@ runs:
           ${{ inputs.username }}/${{ inputs.project }}:latest
           ${{ inputs.username }}/${{ inputs.project }}:${{ github.sha }}
         platforms: ${{ inputs.platforms }}
-
+        build-args: |
+          IMAGE_NAME=${{ inputs.project }}
+          ${{ inputs.build-args }}
     - name: Log out from Docker Hub
       shell: bash
       run: docker logout
