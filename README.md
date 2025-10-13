@@ -96,6 +96,48 @@ jobs:
           echo "Image digest: ${{ steps.docker-build.outputs.image-digest }}"
 ```
 
+## Example Repository Structure
+
+The actions assumes the following structure as default. You can specify the `Dockerfile` location using the `context` input parameter.
+
+```
+your-repo/
+├── .github/
+│   └── workflows/
+│       └── release.yml
+├── app/...
+├── Dockerfile
+├── gitversion.yml
+└── README.md
+```
+
+## Example Dockerfile
+
+the following is an example dockerfile that sets the image name as the project name.
+
+```Dockerfile
+FROM alpine:latest
+
+# Set build-time variable, imported from pipeline environment during `Build` step
+ARG IMAGE_NAME
+# Copy the ARG value to an ENV variable that will persist at runtime
+ENV IMAGE_NAME=${IMAGE_NAME}
+
+# Create a non-root user with a fixed UID and group ID
+RUN addgroup -g 1000 ${IMAGE_NAME} && \
+    adduser -D -u 1000 -G ${IMAGE_NAME} ${IMAGE_NAME}
+
+# Copy the binary into the container and adjust permissions
+COPY ${IMAGE_NAME} /usr/local/bin/${IMAGE_NAME}
+RUN chmod +x /usr/local/bin/${IMAGE_NAME} && chown ${IMAGE_NAME}:${IMAGE_NAME} /usr/local/bin/${IMAGE_NAME}
+
+# Switch to the non-root user
+USER ${IMAGE_NAME}
+
+# Use shell form to allow variable substitution
+ENTRYPOINT /usr/local/bin/${IMAGE_NAME}
+```
+
 ## Inputs
 
 | Input | Description | Required | Default |
@@ -194,35 +236,6 @@ If you're using GitVersion, ensure your workflow has the required permissions:
 permissions:
   contents: write  # For GitVersion tagging
 ```
-
-## Dependencies
-
-This action uses the following third-party actions:
-
-- `docker/login-action@v3`
-- `docker/setup-buildx-action@v3`
-- `docker/build-push-action@v5`
-
-## Example Repository Structure
-
-```
-your-repo/
-├── .github/
-│   └── workflows/
-│       └── release.yml
-├── src/
-│   └── Dockerfile
-├── gitversion.yml
-└── README.md
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
 
 ## License
 
