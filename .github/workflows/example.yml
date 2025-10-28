@@ -24,6 +24,7 @@ jobs:
 
       - name: Tag with GitVersion
         uses: michielvha/gitversion-tag-action@v5
+        id: gitversion
         with:
           configFilePath: 'gitversion.yml'
 
@@ -40,4 +41,4 @@ jobs:
       
       - name: Display outputs
         run: |
-          echo "📦 Image digest: ${{ steps.build.outputs.image-digest }}"
+           echo "📦 Image digest: ${{ steps.docker-build.outputs.image-digest }}"
