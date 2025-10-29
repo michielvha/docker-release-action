@@ -28,73 +28,12 @@ The action creates three Docker tags:
 ### Basic Example
 
 ```yaml
-name: Build and Release
 
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build and Push Docker Image
-        uses: michielvha/docker-release-action@v1
-        with:
-          username: <your_username>
-          password: ${{ secrets.DOCKER_PASSWORD }}
-          project: 'my-app'
-          version: '1.2.3'  # Or omit to use 'dev' default
 ```
 
-### Advanced example with GitVersion
+### Example with GitVersion
 
-```yaml
-name: Build and Release
-
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Tag with GitVersion
-        uses: michielvha/gitversion-tag-action@v3
-        with:
-          configFilePath: 'gitversion.yml'
-
-      - name: Build and Push Docker Image
-        uses: michielvha/docker-release-action@v1
-        with:
-          username: <your_username>
-          password: ${{ secrets.DOCKER_PASSWORD }}
-          project: 'my-app'
-          version: ${{ steps.gitversion.outputs.semVer }}
-          platforms: 'linux/amd64,linux/arm64'
-          context: './src'
-      
-      - name: Display image digest
-        run: |
-          echo "Image digest: ${{ steps.docker-build.outputs.image-digest }}"
-```
+This is my personal prefered implementation, combining automated versioning with easy docker release, requires only 2 files and a repository secret. This can be automated with repo templates and variable groups. Check out the example [here](example.yaml)
 
 ## Example Repository Structure
 
