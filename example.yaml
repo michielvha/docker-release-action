@@ -37,7 +37,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           project: 'my-app'
           version: ${{ steps.gitversion.outputs.semver }}
-          platforms: 'linux/amd64'
+          platforms: 'linux/amd64,linux/arm64'
           context: '.'
       
       - name: Display outputs
