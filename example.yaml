@@ -35,7 +35,7 @@ jobs:
         with:
           username: <your_username> # do not use a secret here, only variables will work. Secrets cannot be used here to create the docker upload path.
           password: ${{ secrets.DOCKER_PASSWORD }}
-          project: 'erm'
+          project: 'my-app'
           version: ${{ steps.gitversion.outputs.semver }}
           platforms: 'linux/amd64'
           context: '.'
