@@ -109,10 +109,11 @@ The `version` can be:
 
 ### 1. Docker Hub Secrets
 
-Add these secrets to your repository:
+Add this secrets to your repository:
 
-- `DOCKER_USERNAME`: Your Docker Hub username
 - `DOCKER_PASSWORD`: Your Docker Hub password or access token
+
+optionally create an repo variable for `DOCKER_USERNAME` or just hardcode it in the workflow
 
 ### 2. GitVersion Setup (Optional)
 
