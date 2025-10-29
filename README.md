@@ -1,6 +1,6 @@
 # Docker Release Action
 
-A reusable GitHub Action that builds and publishes Docker images with automatic version detection from GitVersion environment variables.
+A reusable GitHub Action that builds and publishes Docker images with version detection via environment variables.
 
 ## Features
 
