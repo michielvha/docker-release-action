@@ -27,13 +27,11 @@ The action creates three Docker tags:
 
 ### Basic Example
 
-```yaml
+A minimal viable example can be found [here](./examples/minimal.yaml)
 
-```
+### Prefered workflow
 
-### Example with GitVersion
-
-This is my personal prefered implementation, combining automated versioning with easy docker release, requires only 2 files and a repository secret. This can be automated with repo templates and variable groups. Check out the example [here](example.yaml)
+This is my personal prefered implementation, combining automated versioning with easy docker release, requires only 2 files and a repository secret. This can be automated with repo templates and variable groups. Check out the example [here](./examples/main.yaml)
 
 ## Example Repository Structure
 
