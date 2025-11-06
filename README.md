@@ -4,7 +4,7 @@ A reusable GitHub Action that builds and publishes Docker images with version de
 
 ## Features
 
-- 🐳 Docker image building and pushing to Docker Hub
+- 🐳 Docker image building and pushing to any OCI compliant registry
 - 🏗️ Multi-platform support (configurable)
 - 🔄 Reusable across multiple repositories
 - 🏷️ Automatic tagging with version, latest, and SHA
@@ -80,6 +80,7 @@ ENTRYPOINT /usr/local/bin/${IMAGE_NAME}
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `version` | GitVersion version to use | ❌ | `dev` |
+| `registry` | specify any OCI complaint registry | ❌ | `docker.io` |
 | `username` | Docker Hub username | ✅ | - |
 | `password` | Docker Hub password or token | ✅ | - |
 | `project` | Docker image name (e.g., edgeforge/erm) | ✅ | - |
@@ -126,45 +127,7 @@ If you want to use GitVersion for automatic semantic versioning, use this action
     configFilePath: 'gitversion.yml'
 ```
 
-### 3. GitVersion Configuration (Optional)
-
-If using GitVersion, create a `gitversion.yml` file in your repository root:
-
-```yaml
-# https://gitversion.net/docs/reference/configuration
-# manually verify with `gitversion (/showconfig)`
-# IMPORTANT: on initial onboarding comment out everything but workflow after first run you can put it back
-workflow: GitHubFlow/v1
-# Custom strategies - this differs from default
-
-strategies:
-  - MergeMessage
-  - TaggedCommit
-  - TrackReleaseBranches
-  - VersionInBranchName
-branches:
-  main:
-    regex: ^master$|^main$
-    increment: Patch
-    prevent-increment:
-      of-merged-branch: true
-    track-merge-target: false
-    track-merge-message: true
-    is-main-branch: true
-    mode: ContinuousDeployment # also do it here
-  release:
-    # Custom release branch configuration
-    regex: ^release/(?<BranchName>[0-9]+\.[0-9]+\.[0-9]+)$
-    label: ''
-    increment: None
-    prevent-increment:
-      when-current-commit-tagged: true
-      of-merged-branch: true
-    is-release-branch: true
-    mode: ContinuousDeployment # do not use ContinuousDelivery, else it will increment the version with a suffix on each commit.
-    source-branches:
-      - main
-```
+you need to create a [`gitversion.yml`](https://github.com/michielvha/gitversion-tag-action/blob/a7c0d576d1b02319b05c706e6c8004007ed455fc/gitversion.example.yml) file in your repository root.
 
 ### 4. Repository Permissions (Required for GitVersion)
 
