@@ -54,9 +54,9 @@ runs:
         context: ${{ inputs.context }}
         push: true
         tags: |
-          ${{ inputs.username }}/${{ inputs.project }}:${{ inputs.version }}
-          ${{ inputs.username }}/${{ inputs.project }}:latest
-          ${{ inputs.username }}/${{ inputs.project }}:${{ github.sha }}
+          ${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}:${{ inputs.version }}
+          ${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}:latest
+          ${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}:${{ github.sha }}
         platforms: ${{ inputs.platforms }}
         build-args: |
           IMAGE_NAME=${{ inputs.project }}
