@@ -19,5 +19,5 @@ jobs:
         with:
           username: <your_username>
           password: ${{ secrets.DOCKER_PASSWORD }}
-          project: 'my-app'
+          project: ${{ github.event.repository.name }}
           version: '1.2.3'  # Or omit to use 'dev' default
