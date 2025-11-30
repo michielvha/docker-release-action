@@ -33,9 +33,9 @@ jobs:
         id: docker-build
         uses: michielvha/docker-release-action@main
         with:
-          registry: ghcr.io
-          username: <your_username> # do not use a secret here, only variables will work. Secrets cannot be used here to create the docker upload path.
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ghcr.io # docker.io
+          username: ${{ github.actor }} # do not use a secret here, only variables will work. Secrets cannot be used here to create the docker upload path.
+          password: ${{ secrets.GITHUB_TOKEN }} # ${{ secrets.DOCKER_PASSWORD }}
           project: ${{ github.event.repository.name }}
           version: ${{ steps.gitversion.outputs.semver }}
           platforms: 'linux/amd64,linux/arm64'
