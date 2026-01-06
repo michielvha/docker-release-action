@@ -64,3 +64,31 @@ runs:
     - name: Log out from Docker Hub
       shell: bash
       run: docker logout
+
+
+#    # TODO: Add some metadata to the output for a nice summary
+#    - name: Docker Metadata
+#      id: docker-metadata-simple
+#      uses: docker/metadata-action@v5
+#      with:
+#        images: |
+#          ${{ inputs.registry }}/${{ inputs.image-name }}
+#        tags: |
+#          type=semver,pattern={{version}},value=${{ inputs.version }}
+
+#    - name: Set Docker Metadata Output
+#      id: docker-metadata
+#      shell: bash
+#      run: |
+#        if [ "${{ inputs.detailed-version-levels }}" == "true" ]; then
+#          tags=$(echo "${{ steps.docker-metadata-detailed.outputs.tags }}" | tr '\n' ',')
+#          labels=$(echo "${{ steps.docker-metadata-detailed.outputs.labels }}" | tr '\n' ',')
+#          echo "tags=$tags" >> $GITHUB_OUTPUT
+#          echo "labels=$labels" >> $GITHUB_OUTPUT
+#        else
+#          tags=$(echo "${{ steps.docker-metadata-simple.outputs.tags }}" | tr '\n' ',')
+#          labels=$(echo "${{ steps.docker-metadata-simple.outputs.labels }}" | tr '\n' ',')
+#          echo "tags=$tags" >> $GITHUB_OUTPUT
+#          echo "labels=$labels" >> $GITHUB_OUTPUT
+#        fi
+
