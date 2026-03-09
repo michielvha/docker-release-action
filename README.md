@@ -10,6 +10,7 @@ A reusable GitHub Action that builds and publishes Docker images with version de
 - 🏷️ Automatic tagging with version, latest, and SHA
 - ⚡ Simple and clean - no complex configuration needed
 - 🎯 Works seamlessly with GitVersion environment variables
+- 🚀 Optional BuildKit layer caching via GitHub Actions cache
 
 ## How It Works
 
@@ -86,6 +87,9 @@ ENTRYPOINT /usr/local/bin/${IMAGE_NAME}
 | `project` | Docker image name (e.g., edgeforge/erm) | ✅ | - |
 | `platforms` | Target platforms for Docker build | ❌ | `linux/amd64` |
 | `context` | Docker build context | ❌ | `.` |
+| `cache-from` | BuildKit external cache sources (e.g. `type=gha,scope=my-workflow`) | ❌ | `""` (disabled) |
+| `cache-to` | BuildKit cache export destinations (e.g. `type=gha,scope=my-workflow,mode=max`) | ❌ | `""` (disabled) |
+| `build-args` | Additional Docker build arguments | ❌ | - |
 
 ## Outputs
 
@@ -105,6 +109,23 @@ The `version` can be:
 - A specific version string (e.g., "1.2.3")
 - The GitVersion semantic version using `${{ env.GITVERSION_SEMVER }}`
 - The default "dev" for development builds
+
+## Caching
+
+Enable BuildKit layer caching via GitHub Actions cache to speed up repeated builds. Pass `cache-from` and `cache-to` inputs using the `gha` (GitHub Actions) cache backend:
+
+```yaml
+- name: Build and Push Docker Image
+  uses: michielvha/docker-release-action@main
+  with:
+    username: ${{ github.actor }}
+    password: ${{ secrets.GITHUB_TOKEN }}
+    project: ${{ github.event.repository.name }}
+    cache-from: type=gha,scope=${{ github.workflow }}
+    cache-to: type=gha,scope=${{ github.workflow }},mode=max
+```
+
+`mode=max` caches all intermediate layers (including builder/install stages), so expensive steps like `go mod download`, `npm ci`, or `uv sync` are reused across runs. Caching is disabled by default — omitting these inputs leaves existing workflows unchanged.
 
 ## Prerequisites
 

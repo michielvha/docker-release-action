@@ -32,6 +32,14 @@ inputs:
   registry:
     description: 'optionally specify any OCI complaint registry, common ones include docker.io, ghcr.io, gcr.io, quay.io, defaults to docker hub.'
     default: 'docker.io'
+  cache-from:
+    description: 'List of external cache sources for BuildKit (e.g. "type=gha,scope=my-workflow"). Leave empty to disable caching.'
+    required: false
+    default: ''
+  cache-to:
+    description: 'List of cache export destinations for BuildKit (e.g. "type=gha,scope=my-workflow,mode=max"). Leave empty to disable caching.'
+    required: false
+    default: ''
 outputs:
   image-digest:
     description: 'Docker image digest'
@@ -61,6 +69,8 @@ runs:
         build-args: |
           IMAGE_NAME=${{ inputs.project }}
           ${{ inputs.build-args }}
+        cache-from: ${{ inputs.cache-from }}
+        cache-to: ${{ inputs.cache-to }}
     - name: Log out from Docker Hub
       shell: bash
       run: docker logout
