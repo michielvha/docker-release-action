@@ -53,7 +53,7 @@ inputs:
     required: false
     default: '0'
   trivy-format:
-    description: 'Trivy output format (table, json, sarif, cyclonedx, spdx-json) - sarif requires `security-events: write` permission'
+    description: 'Trivy output format (table, json, sarif, cyclonedx, spdx-json) - sarif requires `security-events: write` permission and GHAS enabled (pro feature)'
     required: false
     default: 'table'
 outputs:
@@ -114,6 +114,12 @@ runs:
           echo "## Trivy Scan — No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
         fi
 
+    - name: Upload Trivy SARIF to GitHub Security
+      if: ${{ inputs.trivy-scan == 'true' && inputs.trivy-format == 'sarif' && always() }}
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: trivy-results.txt
+        category: trivy-image
 
     - name: Log out from Docker Hub
       shell: bash
