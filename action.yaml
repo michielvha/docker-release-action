@@ -113,7 +113,14 @@ runs:
         else
           echo "## Trivy Scan — No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
         fi
-        
+
+    - name: Upload Trivy SARIF to GitHub Security
+      if: ${{ inputs.trivy-scan == 'true' && inputs.trivy-format == 'sarif' && always() }}
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: trivy-results.txt
+        category: trivy-image
+
     - name: Log out from Docker Hub
       shell: bash
       run: docker logout
