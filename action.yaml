@@ -40,6 +40,22 @@ inputs:
     description: 'List of cache export destinations for BuildKit (e.g. "type=gha,scope=my-workflow,mode=max"). Leave empty to disable caching.'
     required: false
     default: ''
+  trivy-scan:
+    description: 'Enable Trivy vulnerability scanning of the built image'
+    required: false
+    default: 'true'
+  trivy-severity:
+    description: 'Trivy severity levels to report (comma-separated)'
+    required: false
+    default: 'HIGH,CRITICAL'
+  trivy-exit-code:
+    description: 'Exit code when vulnerabilities are found (0 = report only, 1 = fail)'
+    required: false
+    default: '0'
+  trivy-format:
+    description: 'Trivy output format (table, json, sarif, cyclonedx, spdx-json) - sarif requires `security-events: write` permission'
+    required: false
+    default: 'table'
 outputs:
   image-digest:
     description: 'Docker image digest'
@@ -53,8 +69,10 @@ runs:
         registry: ${{ inputs.registry }}
         username: ${{ inputs.username }}
         password: ${{ inputs.password }}
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
+
     - name: Build and push Docker image
       id: build-push
       uses: docker/build-push-action@v7
@@ -71,27 +89,31 @@ runs:
           ${{ inputs.build-args }}
         cache-from: ${{ inputs.cache-from }}
         cache-to: ${{ inputs.cache-to }}
+
+    - name: Scan image with Trivy
+      if: ${{ inputs.trivy-scan == 'true' }}
+      uses: aquasecurity/trivy-action@v0.35.0
+      with:
+        scan-type: image
+        image-ref: ${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}:${{ inputs.version }}
+        severity: ${{ inputs.trivy-severity }}
+        exit-code: ${{ inputs.trivy-exit-code }}
+        format: ${{ inputs.trivy-format }}
+        output: trivy-results.txt
+
+    - name: Post Trivy results to summary
+      if: ${{ inputs.trivy-scan == 'true' && inputs.trivy-format == 'table' && always() }}
+      shell: bash
+      run: |
+        if [ -s trivy-results.txt ]; then
+          echo "## Trivy Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat trivy-results.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        else
+          echo "## Trivy Scan — No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+        fi
+        
     - name: Log out from Docker Hub
       shell: bash
       run: docker logout
-
-
-#    # TODO: Add some metadata to the output for a nice summary
-#    - name: Docker Metadata
-#      id: docker-metadata
-#      uses: docker/metadata-action@v5
-#      with:
-#        images: |
-#          ${{ inputs.registry }}/${{ inputs.image-name }}
-#        tags: |
-#          type=semver,pattern={{version}},value=${{ inputs.version }}
-#
-#    - name: Set Docker Metadata Output
-#      id: docker-metadata
-#      shell: bash
-#      run: |
-#          tags=$(echo "${{ steps.docker-metadata-simple.outputs.tags }}" | tr '\n' ',')
-#          labels=$(echo "${{ steps.docker-metadata-simple.outputs.labels }}" | tr '\n' ',')
-#          echo "tags=$tags" >> $GITHUB_OUTPUT
-#          echo "labels=$labels" >> $GITHUB_OUTPUT
-
