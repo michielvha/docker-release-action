@@ -39,11 +39,11 @@ This is my personal preferred implementation, combining automated versioning wit
 
 For projects that build multi-platform images (e.g., `linux/amd64` + `linux/arm64`), the default single-job approach uses QEMU emulation which is 5-10x slower for cross-platform builds. The `matrix-mode` input enables native builds on matching runners, cutting build times by 60-70%.
 
-This implements Docker's official [multi-platform build distribution pattern](https://docs.docker.com/build/ci/github-actions/multi-platform/) — each matrix leg builds natively and pushes by digest, then a merge job combines the digests into a tagged multi-arch manifest.
+This implements Docker's official [multi-platform build distribution pattern](https://docs.docker.com/build/ci/github-actions/multi-platform/) each matrix leg builds natively and pushes by digest, then a merge job combines the digests into a tagged multi-arch manifest.
 
 Check out the full example [here](./examples/matrix.yaml)
 
-**Requirements:** `ubuntu-24.04-arm` runners require a GitHub Teams or Enterprise plan. The default single-job mode (`matrix-mode` omitted) continues to work on any plan using QEMU.
+**Requirements:** `ubuntu-24.04-arm` runners are available on all GitHub plans. Public repos get them for free (4 vCPUs, 16 GB RAM), private repos use account minutes (2 vCPUs, 8 GB RAM). The default single-job mode (`matrix-mode` omitted) continues to work using QEMU.
 
 <details>
 <summary>How matrix-mode works</summary>
