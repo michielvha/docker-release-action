@@ -141,7 +141,7 @@ runs:
     # ── Matrix merge mode: combine digests into multi-arch manifest ─────
     - name: Download digests
       if: ${{ inputs.matrix-mode == 'merge' }}
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         path: ${{ runner.temp }}/digests
         pattern: digests-${{ inputs.project }}-*
