@@ -1,0 +1,50 @@
+name: Multi-Platform Native Build
+
+on:
+  push:
+    tags:
+      - '*.*.*'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Build and push by digest
+        uses: michielvha/docker-release-action@v2
+        with:
+          matrix-mode: build
+          version: ${{ github.ref_name }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          project: ${{ github.event.repository.name }}
+          platforms: ${{ matrix.platform }}
+
+  merge:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create multi-arch manifest
+        uses: michielvha/docker-release-action@v2
+        with:
+          matrix-mode: merge
+          version: ${{ github.ref_name }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          project: ${{ github.event.repository.name }}

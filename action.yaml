@@ -40,6 +40,10 @@ inputs:
     description: 'List of cache export destinations for BuildKit (e.g. "type=gha,scope=my-workflow,mode=max"). Leave empty to disable caching.'
     required: false
     default: ''
+  matrix-mode:
+    description: 'Enable native multi-platform matrix builds. Use "build" in each matrix leg to push a single-platform image by digest, then "merge" in a follow-up job to combine digests into a multi-arch manifest. Leave empty for default single-job behavior (backward compatible).'
+    required: false
+    default: ''
   trivy-scan:
     description: 'Enable Trivy vulnerability scanning of the built image'
     required: false
@@ -59,10 +63,11 @@ inputs:
 outputs:
   image-digest:
     description: 'Docker image digest'
-    value: ${{ steps.build-push.outputs.digest }}
+    value: ${{ steps.build-push.outputs.digest || steps.build-push-digest.outputs.digest || '' }}
 runs:
   using: 'composite'
   steps:
+    # ── Login & Buildx (all modes) ──────────────────────────────────────
     - name: Log in to Docker Hub
       uses: docker/login-action@v4
       with:
@@ -73,8 +78,10 @@ runs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
 
+    # ── Default mode: build and push with tags ──────────────────────────
     - name: Build and push Docker image
       id: build-push
+      if: ${{ inputs.matrix-mode == '' }}
       uses: docker/build-push-action@v7
       with:
         context: ${{ inputs.context }}
@@ -90,8 +97,70 @@ runs:
         cache-from: ${{ inputs.cache-from }}
         cache-to: ${{ inputs.cache-to }}
 
+    # ── Matrix build mode: push single platform by digest ───────────────
+    - name: Build and push by digest
+      id: build-push-digest
+      if: ${{ inputs.matrix-mode == 'build' }}
+      uses: docker/build-push-action@v7
+      with:
+        context: ${{ inputs.context }}
+        platforms: ${{ inputs.platforms }}
+        build-args: |
+          IMAGE_NAME=${{ inputs.project }}
+          ${{ inputs.build-args }}
+        cache-from: ${{ inputs.cache-from }}
+        cache-to: ${{ inputs.cache-to }}
+        outputs: type=image,name=${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }},push-by-digest=true,name-canonical=true,push=true
+
+    - name: Prepare platform pair
+      if: ${{ inputs.matrix-mode == 'build' }}
+      id: platform
+      shell: bash
+      run: |
+        platform="${{ inputs.platforms }}"
+        echo "pair=${platform//\//-}" >> $GITHUB_OUTPUT
+
+    - name: Export digest
+      if: ${{ inputs.matrix-mode == 'build' }}
+      shell: bash
+      run: |
+        mkdir -p ${{ runner.temp }}/digests
+        digest="${{ steps.build-push-digest.outputs.digest }}"
+        touch "${{ runner.temp }}/digests/${digest#sha256:}"
+        echo "Exported digest: $digest"
+
+    - name: Upload digest
+      if: ${{ inputs.matrix-mode == 'build' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: digests-${{ inputs.project }}-${{ steps.platform.outputs.pair }}
+        path: ${{ runner.temp }}/digests/*
+        if-no-files-found: error
+        retention-days: 1
+
+    # ── Matrix merge mode: combine digests into multi-arch manifest ─────
+    - name: Download digests
+      if: ${{ inputs.matrix-mode == 'merge' }}
+      uses: actions/download-artifact@v4
+      with:
+        path: ${{ runner.temp }}/digests
+        pattern: digests-${{ inputs.project }}-*
+        merge-multiple: true
+
+    - name: Create multi-arch manifest
+      if: ${{ inputs.matrix-mode == 'merge' }}
+      shell: bash
+      working-directory: ${{ runner.temp }}/digests
+      run: |
+        docker buildx imagetools create \
+          -t ${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}:${{ inputs.version }} \
+          -t ${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}:latest \
+          -t ${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}:${{ github.sha }} \
+          $(printf '${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}@sha256:%s ' *)
+
+    # ── Trivy scan (default + merge modes, skipped in build mode) ───────
     - name: Scan image with Trivy
-      if: ${{ inputs.trivy-scan == 'true' }}
+      if: ${{ inputs.trivy-scan == 'true' && inputs.matrix-mode != 'build' }}
       uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
       with:
         scan-type: image
@@ -102,7 +171,7 @@ runs:
         output: trivy-results.txt
 
     - name: Post Trivy results to summary
-      if: ${{ inputs.trivy-scan == 'true' && inputs.trivy-format == 'table' && always() }}
+      if: ${{ inputs.trivy-scan == 'true' && inputs.trivy-format == 'table' && inputs.matrix-mode != 'build' && always() }}
       shell: bash
       run: |
         if [ -s trivy-results.txt ]; then
@@ -115,7 +184,7 @@ runs:
         fi
 
     - name: Upload Trivy SARIF to GitHub Security
-      if: ${{ inputs.trivy-scan == 'true' && inputs.trivy-format == 'sarif' && always() }}
+      if: ${{ inputs.trivy-scan == 'true' && inputs.trivy-format == 'sarif' && inputs.matrix-mode != 'build' && always() }}
       uses: github/codeql-action/upload-sarif@v4
       with:
         sarif_file: trivy-results.txt

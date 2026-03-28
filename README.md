@@ -5,12 +5,13 @@ A reusable GitHub Action that builds and publishes Docker images with version de
 ## Features
 
 - 🐳 Docker image building and pushing to any OCI compliant registry
-- 🏗️ Multi-platform support (configurable)
+- 🏗️ Multi-platform support (single-job QEMU or native matrix builds)
 - 🔄 Reusable across multiple repositories
 - 🏷️ Automatic tagging with version, latest, and SHA
 - ⚡ Simple and clean - no complex configuration needed
 - 🎯 Works seamlessly with GitVersion environment variables
 - 🚀 Optional BuildKit layer caching via GitHub Actions cache
+- 🔀 Native multi-arch matrix builds with `matrix-mode` (push-by-digest + manifest merge)
 
 ## How It Works
 
@@ -21,18 +22,38 @@ This action builds and pushes Docker images with flexible versioning options. Yo
 
 The action creates three Docker tags:
 - **Version tag**: `username/project:{version}`
-- **Latest tag**: `username/project:latest`  
+- **Latest tag**: `username/project:latest`
 - **SHA tag**: `username/project:abc123...`
 
 ## Usage
 
 ### Basic Example
 
-A minimal viable example can be found [here](./examples/minimal.yaml)
+A minimal viable example can be found [here](./examples/basic.yaml)
 
-### Prefered workflow
+### Preferred workflow
 
-This is my personal prefered implementation, combining automated versioning with easy docker release, requires only 2 files and a repository secret. This can be automated with repo templates and variable groups. Check out the example [here](./examples/main.yaml)
+This is my personal preferred implementation, combining automated versioning with easy docker release, requires only 2 files and a repository secret. This can be automated with repo templates and variable groups. Check out the example [here](./examples/main.yaml)
+
+### Native Multi-Arch Matrix Builds
+
+For projects that build multi-platform images (e.g., `linux/amd64` + `linux/arm64`), the default single-job approach uses QEMU emulation which is 5-10x slower for cross-platform builds. The `matrix-mode` input enables native builds on matching runners, cutting build times by 60-70%.
+
+This implements Docker's official [multi-platform build distribution pattern](https://docs.docker.com/build/ci/github-actions/multi-platform/) — each matrix leg builds natively and pushes by digest, then a merge job combines the digests into a tagged multi-arch manifest.
+
+Check out the full example [here](./examples/matrix.yaml)
+
+**Requirements:** `ubuntu-24.04-arm` runners require a GitHub Teams or Enterprise plan. The default single-job mode (`matrix-mode` omitted) continues to work on any plan using QEMU.
+
+<details>
+<summary>How matrix-mode works</summary>
+
+1. Each `build` leg pushes image layers by digest (no tags, no clutter)
+2. Digests are passed between jobs via GitHub Actions artifacts (handled automatically by the action)
+3. The `merge` step downloads all digests and creates a multi-arch manifest tagged with `version`, `latest`, and `sha`
+4. Trivy scan runs once on the final manifest (skipped during individual builds)
+
+</details>
 
 ## Example Repository Structure
 
@@ -41,12 +62,12 @@ The actions assumes the following structure as default. You can specify the `Doc
 ```
 your-repo/
 ├── .github/
-│   └── workflows/
+��   └── workflows/
 │       └── release.yml
 ├── app/...
 ├── Dockerfile
 ├── gitversion.yml
-└── README.md
+└─��� README.md
 ```
 
 ## Example Dockerfile
@@ -89,13 +110,18 @@ ENTRYPOINT /usr/local/bin/${IMAGE_NAME}
 | `context` | Docker build context | ❌ | `.` |
 | `cache-from` | BuildKit external cache sources (e.g. `type=gha,scope=my-workflow`) | ❌ | `""` (disabled) |
 | `cache-to` | BuildKit cache export destinations (e.g. `type=gha,scope=my-workflow,mode=max`) | ❌ | `""` (disabled) |
-| `build-args` | Additional Docker build arguments | ❌ | - |
+| `matrix-mode` | Native matrix build mode: `build` or `merge` (see [Matrix Builds](#native-multi-arch-matrix-builds)) | ❌ | `""` (disabled) |
+| `build-args` | Additional Docker build arguments | �� | - |
+| `trivy-scan` | Enable Trivy vulnerability scanning | ❌ | `true` |
+| `trivy-severity` | Trivy severity levels (comma-separated) | ❌ | `HIGH,CRITICAL` |
+| `trivy-exit-code` | Exit code when vulnerabilities found (0 = report, 1 = fail) | ❌ | `0` |
+| `trivy-format` | Trivy output format (table, json, sarif, cyclonedx, spdx-json) | ❌ | `table` |
 
 ## Outputs
 
 | Output | Description |
 |--------|-------------|
-| `image-digest` | Docker image digest |
+| `image-digest` | Docker image digest (manifest digest in default mode, platform digest in build mode) |
 
 ## Generated Tags
 
@@ -109,6 +135,8 @@ The `version` can be:
 - A specific version string (e.g., "1.2.3")
 - The GitVersion semantic version using `${{ env.GITVERSION_SEMVER }}`
 - The default "dev" for development builds
+
+In `matrix-mode: build`, no tags are created (images are pushed by digest only). Tags are applied in the `merge` step.
 
 ## Caching
 
@@ -150,7 +178,7 @@ If you want to use GitVersion for automatic semantic versioning, use this action
 
 you need to create a [`gitversion.yml`](https://github.com/michielvha/gitversion-tag-action/blob/a7c0d576d1b02319b05c706e6c8004007ed455fc/gitversion.example.yml) file in your repository root.
 
-### 4. Repository Permissions (Required for GitVersion)
+### 3. Repository Permissions (Required for GitVersion)
 
 If you're using GitVersion, ensure your workflow has the required permissions:
 
