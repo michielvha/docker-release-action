@@ -40,6 +40,10 @@ inputs:
     description: 'List of cache export destinations for BuildKit (e.g. "type=gha,scope=my-workflow,mode=max"). Leave empty to disable caching.'
     required: false
     default: ''
+  secret-files:
+    description: 'BuildKit secret files to mount during build (e.g., "netrc=.netrc"). Maps directly to docker/build-push-action secret-files input. Use with RUN --mount=type=secret in Dockerfiles.'
+    required: false
+    default: ''
   matrix-mode:
     description: 'Enable native multi-platform matrix builds. Use "build" in each matrix leg to push a single-platform image by digest, then "merge" in a follow-up job to combine digests into a multi-arch manifest. Leave empty for default single-job behavior (backward compatible).'
     required: false
@@ -96,6 +100,7 @@ runs:
           ${{ inputs.build-args }}
         cache-from: ${{ inputs.cache-from }}
         cache-to: ${{ inputs.cache-to }}
+        secret-files: ${{ inputs.secret-files }}
 
     # ── Matrix build mode: push single platform by digest ───────────────
     - name: Build and push by digest
@@ -110,6 +115,7 @@ runs:
           ${{ inputs.build-args }}
         cache-from: ${{ inputs.cache-from }}
         cache-to: ${{ inputs.cache-to }}
+        secret-files: ${{ inputs.secret-files }}
         outputs: type=image,name=${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }},push-by-digest=true,name-canonical=true,push=true
 
     - name: Prepare platform pair

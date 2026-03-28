@@ -112,6 +112,7 @@ ENTRYPOINT /usr/local/bin/${IMAGE_NAME}
 | `cache-to` | BuildKit cache export destinations (e.g. `type=gha,scope=my-workflow,mode=max`) | ❌ | `""` (disabled) |
 | `matrix-mode` | Native matrix build mode: `build` or `merge` (see [Matrix Builds](#native-multi-arch-matrix-builds)) | ❌ | `""` (disabled) |
 | `build-args` | Additional Docker build arguments | �� | - |
+| `secret-files` | BuildKit secret files to mount during build (e.g. `netrc=.netrc`). Use with `RUN --mount=type=secret` in Dockerfiles. See [BuildKit Secrets](#buildkit-secrets). | ❌ | `""` (disabled) |
 | `trivy-scan` | Enable Trivy vulnerability scanning | ❌ | `true` |
 | `trivy-severity` | Trivy severity levels (comma-separated) | ❌ | `HIGH,CRITICAL` |
 | `trivy-exit-code` | Exit code when vulnerabilities found (0 = report, 1 = fail) | ❌ | `0` |
@@ -154,6 +155,39 @@ Enable BuildKit layer caching via GitHub Actions cache to speed up repeated buil
 ```
 
 `mode=max` caches all intermediate layers (including builder/install stages), so expensive steps like `go mod download`, `npm ci`, or `uv sync` are reused across runs. Caching is disabled by default — omitting these inputs leaves existing workflows unchanged.
+
+## BuildKit Secrets
+
+Pass secret files to `docker build` without baking them into image layers. This is useful for private Go module access, npm tokens, or any credentials needed at build time.
+
+```yaml
+steps:
+  - name: Checkout code
+    uses: actions/checkout@v6
+
+  - name: Create .netrc for private Go modules
+    run: |
+      printf "machine github.com\nlogin x-access-token\npassword ${{ secrets.RELEASE_TOKEN }}\n" > .netrc
+
+  - name: Build and Push Docker Image
+    uses: michielvha/docker-release-action@v2
+    with:
+      username: ${{ github.actor }}
+      password: ${{ secrets.GITHUB_TOKEN }}
+      project: ${{ github.event.repository.name }}
+      registry: ghcr.io
+      secret-files: netrc=.netrc
+```
+
+In your Dockerfile, mount the secret during `go mod download`:
+
+```dockerfile
+ENV GOPRIVATE=github.com/your-org/*
+COPY go.mod go.sum ./
+RUN --mount=type=secret,id=netrc,target=/root/.netrc go mod download
+```
+
+The secret is only available during that specific `RUN` step and never appears in any image layer.
 
 ## Prerequisites
 
