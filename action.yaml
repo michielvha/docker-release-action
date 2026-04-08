@@ -137,7 +137,7 @@ runs:
 
     - name: Upload digest
       if: ${{ inputs.matrix-mode == 'build' }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: digests-${{ inputs.project }}-${{ steps.platform.outputs.pair }}
         path: ${{ runner.temp }}/digests/*
