@@ -117,12 +117,42 @@ ENTRYPOINT /usr/local/bin/${IMAGE_NAME}
 | `trivy-severity` | Trivy severity levels (comma-separated) | ❌ | `HIGH,CRITICAL` |
 | `trivy-exit-code` | Exit code when vulnerabilities found (0 = report, 1 = fail) | ❌ | `0` |
 | `trivy-format` | Trivy output format (table, json, sarif, cyclonedx, spdx-json) | ❌ | `table` |
+| `cosign-sign` | Keyless Sigstore signing of pushed digest (`cosign sign`). Requires `id-token: write` on the job. Opt-in for backward compatibility. | ❌ | `false` |
+| `sbom` | Generate an SPDX-JSON SBOM of the built image via Syft and upload as artifact. | ❌ | `false` |
+| `attest-provenance` | Produce a SLSA build-provenance attestation bound to the pushed digest. Requires `id-token: write` + `attestations: write`. | ❌ | `false` |
+| `attest-sbom` | Produce an SBOM attestation alongside provenance. Requires `sbom: true` and the same permissions as `attest-provenance`. | ❌ | `false` |
 
 ## Outputs
 
 | Output | Description |
 |--------|-------------|
 | `image-digest` | Docker image digest (manifest digest in default mode, platform digest in build mode) |
+| `release-digest` | Digest of the final released artifact (manifest in merge-mode, pushed image in default mode, empty in build-mode). Use for signing / verification outside the action. |
+
+## Required Permissions
+
+When using the supply-chain features (defaults on), the calling **job** must declare:
+
+```yaml
+permissions:
+  contents: read
+  packages: write       # GHCR push
+  id-token: write       # Sigstore keyless OIDC
+  attestations: write   # SLSA + SBOM attestations
+```
+
+To opt out of everything supply-chain-side (legacy behaviour — the default), leave `cosign-sign`, `sbom`, `attest-provenance`, `attest-sbom` unset. In that case only `contents: read` + `packages: write` are needed. Existing consumers see no behavioural change.
+
+Verify a signed + attested release:
+
+```bash
+cosign verify "ghcr.io/<owner>/<image>@<digest>" \
+  --certificate-identity-regexp "https://github.com/<owner>/<repo>/.+" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+gh attestation verify oci://ghcr.io/<owner>/<image>@<digest> \
+  --owner <owner>
+```
 
 ## Generated Tags
 

@@ -64,10 +64,29 @@ inputs:
     description: 'Trivy output format (table, json, sarif, cyclonedx, spdx-json) - sarif requires `security-events: write` permission and GHAS enabled (pro feature)'
     required: false
     default: 'table'
+  cosign-sign:
+    description: 'Enable Sigstore keyless signing (cosign sign) of the pushed image digest. Requires the calling job to declare `id-token: write` permission. Opt-in for backward compatibility.'
+    required: false
+    default: 'false'
+  sbom:
+    description: 'Generate an SPDX-JSON SBOM for the built image with Syft and upload it as a workflow artifact. Opt-in for backward compatibility.'
+    required: false
+    default: 'false'
+  attest-provenance:
+    description: 'Produce a SLSA build-provenance attestation (actions/attest-build-provenance) bound to the pushed image digest. Requires the calling job to declare `id-token: write` + `attestations: write` permissions. Opt-in.'
+    required: false
+    default: 'false'
+  attest-sbom:
+    description: 'Produce an SBOM attestation (actions/attest-sbom) bound to the pushed image digest. Requires `id-token: write` + `attestations: write` permissions and `sbom: true`. Opt-in.'
+    required: false
+    default: 'false'
 outputs:
   image-digest:
-    description: 'Docker image digest'
+    description: 'Docker image digest of the pushed manifest (default-mode build) or single-platform leg (build-mode). For merge-mode, see release-digest.'
     value: ${{ steps.build-push.outputs.digest || steps.build-push-digest.outputs.digest || '' }}
+  release-digest:
+    description: 'Digest of the final released artifact: the manifest in merge-mode, the pushed image in default mode, empty in build-mode.'
+    value: ${{ steps.manifest.outputs.digest || steps.build-push.outputs.digest || '' }}
 runs:
   using: 'composite'
   steps:
@@ -155,14 +174,20 @@ runs:
 
     - name: Create multi-arch manifest
       if: ${{ inputs.matrix-mode == 'merge' }}
+      id: manifest
       shell: bash
       working-directory: ${{ runner.temp }}/digests
       run: |
+        image="${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}"
+        version="${{ inputs.version }}"
         docker buildx imagetools create \
-          -t ${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}:${{ inputs.version }} \
-          -t ${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}:latest \
-          -t ${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}:${{ github.sha }} \
-          $(printf '${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}@sha256:%s ' *)
+          -t "${image}:${version}" \
+          -t "${image}:latest" \
+          -t "${image}:${{ github.sha }}" \
+          $(printf "${image}@sha256:%s " *)
+        digest=$(docker buildx imagetools inspect "${image}:${version}" --format '{{json .Manifest}}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["digest"])')
+        echo "digest=${digest}" >> $GITHUB_OUTPUT
+        echo "Resolved manifest digest: ${digest}"
 
     # ── Trivy scan (default + merge modes, skipped in build mode) ───────
     - name: Scan image with Trivy
@@ -195,6 +220,65 @@ runs:
       with:
         sarif_file: trivy-results.txt
         category: trivy-image
+
+    # ── Supply-chain attestations (default + merge modes only) ──────────
+    # Resolves the final release artifact digest (manifest in merge-mode,
+    # pushed image in default-mode) so cosign / attest steps target an
+    # immutable reference rather than a mutable tag.
+    - name: Resolve release digest
+      if: ${{ inputs.matrix-mode != 'build' && (inputs.cosign-sign == 'true' || inputs.sbom == 'true' || inputs.attest-provenance == 'true') }}
+      id: release-ref
+      shell: bash
+      run: |
+        digest="${{ steps.manifest.outputs.digest || steps.build-push.outputs.digest }}"
+        if [ -z "$digest" ]; then
+          echo "::error::No release digest available — cannot sign / attest."
+          exit 1
+        fi
+        image="${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}"
+        echo "digest=${digest}" >> $GITHUB_OUTPUT
+        echo "image=${image}" >> $GITHUB_OUTPUT
+        echo "ref=${image}@${digest}" >> $GITHUB_OUTPUT
+
+    - name: Install cosign
+      if: ${{ inputs.matrix-mode != 'build' && inputs.cosign-sign == 'true' }}
+      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+    - name: Sign image with cosign (keyless)
+      if: ${{ inputs.matrix-mode != 'build' && inputs.cosign-sign == 'true' }}
+      shell: bash
+      env:
+        COSIGN_EXPERIMENTAL: '1'
+      run: |
+        cosign sign --yes "${{ steps.release-ref.outputs.ref }}"
+
+    - name: Generate SBOM (SPDX-JSON via Syft)
+      if: ${{ inputs.matrix-mode != 'build' && inputs.sbom == 'true' }}
+      id: sbom
+      uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+      with:
+        image: ${{ steps.release-ref.outputs.ref }}
+        format: spdx-json
+        output-file: sbom.spdx.json
+        upload-artifact: true
+        upload-artifact-retention: 30
+
+    - name: Attest build provenance (SLSA)
+      if: ${{ inputs.matrix-mode != 'build' && inputs.attest-provenance == 'true' }}
+      uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+      with:
+        subject-name: ${{ steps.release-ref.outputs.image }}
+        subject-digest: ${{ steps.release-ref.outputs.digest }}
+        push-to-registry: true
+
+    - name: Attest SBOM
+      if: ${{ inputs.matrix-mode != 'build' && inputs.sbom == 'true' && inputs.attest-sbom == 'true' }}
+      uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+      with:
+        subject-name: ${{ steps.release-ref.outputs.image }}
+        subject-digest: ${{ steps.release-ref.outputs.digest }}
+        sbom-path: sbom.spdx.json
+        push-to-registry: true
 
     - name: Log out from Docker Hub
       shell: bash
