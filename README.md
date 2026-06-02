@@ -121,6 +121,8 @@ ENTRYPOINT /usr/local/bin/${IMAGE_NAME}
 | `sbom` | Generate an SPDX-JSON SBOM of the built image via Syft and upload as artifact. | ❌ | `false` |
 | `attest-provenance` | Produce a SLSA build-provenance attestation bound to the pushed digest. Requires `id-token: write` + `attestations: write`. | ❌ | `false` |
 | `attest-sbom` | Produce an SBOM attestation alongside provenance. Requires `sbom: true` and the same permissions as `attest-provenance`. | ❌ | `false` |
+| `vex` | Path to an [OpenVEX](https://openvex.dev) document to attach to the released image. Authored out-of-band (e.g. with `vexctl`) and committed to your repo. Empty = skip. | ❌ | `""` (disabled) |
+| `attest-vex` | Produce an OpenVEX attestation (predicate-type `https://openvex.dev/ns/v0.2.0`) bound to the pushed digest. Requires `vex` set + the same permissions as `attest-provenance`. | ❌ | `false` |
 
 ## Outputs
 
@@ -143,6 +145,8 @@ permissions:
 
 To opt out of everything supply-chain-side (legacy behaviour — the default), leave `cosign-sign`, `sbom`, `attest-provenance`, `attest-sbom` unset. In that case only `contents: read` + `packages: write` are needed. Existing consumers see no behavioural change.
 
+VEX attestation (`attest-vex`) reuses the same `id-token: write` + `attestations: write` permissions as the other attestations — it adds no new permission requirement.
+
 Verify a signed + attested release:
 
 ```bash
@@ -152,6 +156,38 @@ cosign verify "ghcr.io/<owner>/<image>@<digest>" \
 
 gh attestation verify oci://ghcr.io/<owner>/<image>@<digest> \
   --owner <owner>
+```
+
+## VEX (non-exploitable findings)
+
+When `attest-vex: true` and `vex` points at an [OpenVEX](https://openvex.dev) document, the action attaches that document to the released image as an attestation (predicate-type `https://openvex.dev/ns/v0.2.0`, bound to the image digest and pushed to the registry). VEX lets you declare which CVEs surfaced by scanners are **not exploitable** in your product, with a machine-readable justification, so downstream scanners can suppress them.
+
+The action only *attaches* the document — you author and maintain it out-of-band (for example with [`vexctl`](https://github.com/openvex/vexctl)) and commit it to your repository. It is fully opt-in: leave `vex`/`attest-vex` unset and behaviour is unchanged.
+
+```yaml
+- name: Build and Push Docker Image
+  uses: michielvha/docker-release-action@v2
+  with:
+    username: ${{ github.actor }}
+    password: ${{ secrets.GITHUB_TOKEN }}
+    project: ${{ github.event.repository.name }}
+    registry: ghcr.io
+    attest-provenance: true
+    sbom: true
+    attest-sbom: true
+    vex: .vex/myapp.openvex.json
+    attest-vex: true
+```
+
+Consumers verify the VEX attestation and let their scanner apply it:
+
+```bash
+gh attestation verify oci://ghcr.io/<owner>/<image>@<digest> \
+  --owner <owner> \
+  --predicate-type https://openvex.dev/ns/v0.2.0
+
+trivy image --vex oci ghcr.io/<owner>/<image>:<tag> \
+  ghcr.io/<owner>/<image>:<tag>
 ```
 
 ## Generated Tags

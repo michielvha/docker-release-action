@@ -80,6 +80,14 @@ inputs:
     description: 'Produce an SBOM attestation (actions/attest-sbom) bound to the pushed image digest. Requires `id-token: write` + `attestations: write` permissions and `sbom: true`. Opt-in.'
     required: false
     default: 'false'
+  vex:
+    description: 'Path to an OpenVEX document (https://openvex.dev) to attach to the released image. Leave empty to skip. The document is authored/maintained out-of-band (e.g. with vexctl) and committed to the calling repository.'
+    required: false
+    default: ''
+  attest-vex:
+    description: 'Produce an OpenVEX attestation (actions/attest, predicate-type https://openvex.dev/ns/v0.2.0) bound to the pushed image digest. Requires `id-token: write` + `attestations: write` permissions and a non-empty `vex` path. Opt-in for backward compatibility.'
+    required: false
+    default: 'false'
 outputs:
   image-digest:
     description: 'Docker image digest of the pushed manifest (default-mode build) or single-platform leg (build-mode). For merge-mode, see release-digest.'
@@ -226,7 +234,7 @@ runs:
     # pushed image in default-mode) so cosign / attest steps target an
     # immutable reference rather than a mutable tag.
     - name: Resolve release digest
-      if: ${{ inputs.matrix-mode != 'build' && (inputs.cosign-sign == 'true' || inputs.sbom == 'true' || inputs.attest-provenance == 'true') }}
+      if: ${{ inputs.matrix-mode != 'build' && (inputs.cosign-sign == 'true' || inputs.sbom == 'true' || inputs.attest-provenance == 'true' || inputs.attest-vex == 'true') }}
       id: release-ref
       shell: bash
       run: |
@@ -278,6 +286,16 @@ runs:
         subject-name: ${{ steps.release-ref.outputs.image }}
         subject-digest: ${{ steps.release-ref.outputs.digest }}
         sbom-path: sbom.spdx.json
+        push-to-registry: true
+
+    - name: Attest VEX (OpenVEX)
+      if: ${{ inputs.matrix-mode != 'build' && inputs.attest-vex == 'true' && inputs.vex != '' }}
+      uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+      with:
+        subject-name: ${{ steps.release-ref.outputs.image }}
+        subject-digest: ${{ steps.release-ref.outputs.digest }}
+        predicate-type: 'https://openvex.dev/ns/v0.2.0'
+        predicate-path: ${{ inputs.vex }}
         push-to-registry: true
 
     - name: Log out from Docker Hub
