@@ -270,6 +270,12 @@ runs:
         output-file: sbom.spdx.json
         upload-artifact: true
         upload-artifact-retention: 30
+        # Do NOT attach the SBOM to the GitHub Release: that needs contents:write
+        # (the merge job is contents:read by design) and 403s whenever the
+        # release already exists at this point (re-runs / pre-existing release).
+        # The SBOM is published as a Sigstore attestation + workflow artifact;
+        # release-asset handling is the caller's dedicated release-assets job.
+        upload-release-assets: false
 
     - name: Attest build provenance (SLSA)
       if: ${{ inputs.matrix-mode != 'build' && inputs.attest-provenance == 'true' }}
