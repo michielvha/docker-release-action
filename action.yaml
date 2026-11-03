@@ -52,6 +52,10 @@ inputs:
     description: 'Enable Trivy vulnerability scanning of the built image'
     required: false
     default: 'true'
+  trivy-version:
+    description: 'Pinned Trivy scanner version'
+    required: false
+    default: 'v0.69.3'
   trivy-severity:
     description: 'Trivy severity levels to report (comma-separated)'
     required: false
@@ -198,10 +202,26 @@ runs:
         echo "Resolved manifest digest: ${digest}"
 
     # ── Trivy scan (default + merge modes, skipped in build mode) ───────
+    - name: Install Trivy from verified GitHub release
+      id: install-trivy
+      if: ${{ inputs.trivy-scan == 'true' && inputs.matrix-mode != 'build' && runner.os == 'Linux' && (runner.arch == 'X64' || runner.arch == 'ARM64') }}
+      shell: bash
+      env:
+        ACTION_DIRECTORY: ${{ github.action_path }}
+        SCANNER_VERSION: ${{ inputs.trivy-version }}
+        RUNNER_ARCHITECTURE: ${{ runner.arch }}
+      run: |
+        scanner_directory="$RUNNER_TEMP/docker-release-trivy/bin"
+        bash "$ACTION_DIRECTORY/scripts/install-trivy.sh" "$SCANNER_VERSION" "$RUNNER_ARCHITECTURE" "$scanner_directory"
+        echo "$scanner_directory" >> "$GITHUB_PATH"
+
     - name: Scan image with Trivy
+      id: trivy
       if: ${{ inputs.trivy-scan == 'true' && inputs.matrix-mode != 'build' }}
       uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
       with:
+        version: ${{ inputs.trivy-version }}
+        skip-setup-trivy: ${{ steps.install-trivy.outcome == 'success' }}
         scan-type: image
         image-ref: ${{ inputs.registry }}/${{ inputs.username }}/${{ inputs.project }}:${{ inputs.version }}
         severity: ${{ inputs.trivy-severity }}
@@ -212,14 +232,18 @@ runs:
     - name: Post Trivy results to summary
       if: ${{ inputs.trivy-scan == 'true' && inputs.trivy-format == 'table' && inputs.matrix-mode != 'build' && always() }}
       shell: bash
+      env:
+        SCAN_OUTCOME: ${{ steps.trivy.outcome }}
       run: |
-        if [ -s trivy-results.txt ]; then
-          echo "## Trivy Scan Results" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat trivy-results.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+        if [ "$SCAN_OUTCOME" != success ]; then
+          echo "## Trivy scan did not complete successfully ($SCAN_OUTCOME)" >> "$GITHUB_STEP_SUMMARY"
+        elif [ -s trivy-results.txt ]; then
+          echo "## Trivy Scan Results" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat trivy-results.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
         else
-          echo "## Trivy Scan — No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          echo "## Trivy scan completed; no table output was produced" >> "$GITHUB_STEP_SUMMARY"
         fi
 
     - name: Upload Trivy SARIF to GitHub Security

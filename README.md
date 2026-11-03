@@ -114,6 +114,7 @@ ENTRYPOINT /usr/local/bin/${IMAGE_NAME}
 | `build-args` | Additional Docker build arguments | �� | - |
 | `secret-files` | BuildKit secret files to mount during build (e.g. `netrc=.netrc`). Use with `RUN --mount=type=secret` in Dockerfiles. See [BuildKit Secrets](#buildkit-secrets). | ❌ | `""` (disabled) |
 | `trivy-scan` | Enable Trivy vulnerability scanning | ❌ | `true` |
+| `trivy-version` | Pinned Trivy scanner version | ❌ | `v0.69.3` |
 | `trivy-severity` | Trivy severity levels (comma-separated) | ❌ | `HIGH,CRITICAL` |
 | `trivy-exit-code` | Exit code when vulnerabilities found (0 = report, 1 = fail) | ❌ | `0` |
 | `trivy-format` | Trivy output format (table, json, sarif, cyclonedx, spdx-json) | ❌ | `table` |
@@ -123,6 +124,15 @@ ENTRYPOINT /usr/local/bin/${IMAGE_NAME}
 | `attest-sbom` | Produce an SBOM attestation alongside provenance. Requires `sbom: true` and the same permissions as `attest-provenance`. | ❌ | `false` |
 | `vex` | Path to an [OpenVEX](https://openvex.dev) document to attach to the released image. Authored out-of-band (e.g. with `vexctl`) and committed to your repo. Empty = skip. | ❌ | `""` (disabled) |
 | `attest-vex` | Produce an OpenVEX attestation (predicate-type `https://openvex.dev/ns/v0.2.0`) bound to the pushed digest. Requires `vex` set + the same permissions as `attest-provenance`. | ❌ | `false` |
+
+On Linux X64 and ARM64 runners, Trivy is downloaded from its official GitHub
+release. The matching SHA-256 checksum is verified before installing the
+executable. Installation or verification failure stops the action. Other runner
+platforms use the pinned Trivy action's standard setup. The scan settings and
+report-only default remain configurable through the existing inputs.
+
+Installer checks run with `bash -n scripts/install-trivy.sh` and
+`python3 -m unittest discover -s tests -v`.
 
 ## Outputs
 
