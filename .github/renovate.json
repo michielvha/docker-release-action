@@ -1,0 +1,55 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^scripts/trivy-checksums\\.txt$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=github-release-attachments depName=aquasecurity/trivy version=(?<currentValue>v[0-9.]+)\\n(?<currentDigest>[a-f0-9]{64})  trivy_[0-9.]+_Linux-64bit\\.tar\\.gz"
+      ],
+      "depNameTemplate": "aquasecurity/trivy",
+      "datasourceTemplate": "github-release-attachments",
+      "versioningTemplate": "semver",
+      "autoReplaceStringTemplate": "# renovate: datasource=github-release-attachments depName=aquasecurity/trivy version={{{newValue}}}\n{{{newDigest}}}  trivy_{{{replace \"^v\" \"\" newValue}}}_Linux-64bit.tar.gz"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^scripts/trivy-checksums\\.txt$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=github-release-attachments depName=aquasecurity/trivy version=(?<currentValue>v[0-9.]+)\\n(?<currentDigest>[a-f0-9]{64})  trivy_[0-9.]+_Linux-ARM64\\.tar\\.gz"
+      ],
+      "depNameTemplate": "aquasecurity/trivy",
+      "datasourceTemplate": "github-release-attachments",
+      "versioningTemplate": "semver",
+      "autoReplaceStringTemplate": "# renovate: datasource=github-release-attachments depName=aquasecurity/trivy version={{{newValue}}}\n{{{newDigest}}}  trivy_{{{replace \"^v\" \"\" newValue}}}_Linux-ARM64.tar.gz"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^action\\.yaml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=github-releases depName=aquasecurity/trivy\\n\\s+default: '(?<currentValue>v[0-9.]+)'"
+      ],
+      "depNameTemplate": "aquasecurity/trivy",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "aquasecurity/trivy"
+      ],
+      "groupName": "Trivy scanner"
+    }
+  ]
+}
