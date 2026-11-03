@@ -126,10 +126,13 @@ ENTRYPOINT /usr/local/bin/${IMAGE_NAME}
 | `attest-vex` | Produce an OpenVEX attestation (predicate-type `https://openvex.dev/ns/v0.2.0`) bound to the pushed digest. Requires `vex` set + the same permissions as `attest-provenance`. | ❌ | `false` |
 
 On Linux X64 and ARM64 runners, Trivy is downloaded from its official GitHub
-release. The matching SHA-256 checksum is verified before installing the
+release. The SHA-256 checksum pinned in this action's source is verified before installing the
 executable. Installation or verification failure stops the action. Other runner
 platforms use the pinned Trivy action's standard setup. The scan settings and
 report-only default remain configurable through the existing inputs.
+Each selected scanner version needs matching entries in `scripts/trivy-checksums.txt`.
+The Renovate custom managers track the default version and both archive digests
+together. These managers require the hosted updater to have repository access.
 
 Installer checks run with `bash -n scripts/install-trivy.sh` and
 `python3 -m unittest discover -s tests -v`.

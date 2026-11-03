@@ -55,6 +55,7 @@ inputs:
   trivy-version:
     description: 'Pinned Trivy scanner version'
     required: false
+    # renovate: datasource=github-releases depName=aquasecurity/trivy
     default: 'v0.69.3'
   trivy-severity:
     description: 'Trivy severity levels to report (comma-separated)'
@@ -202,6 +203,12 @@ runs:
         echo "Resolved manifest digest: ${digest}"
 
     # ── Trivy scan (default + merge modes, skipped in build mode) ───────
+    - name: Clear previous Trivy output
+      id: clear-trivy-output
+      if: ${{ inputs.trivy-scan == 'true' && inputs.matrix-mode != 'build' }}
+      shell: bash
+      run: rm -f -- trivy-results.txt
+
     - name: Install Trivy from verified GitHub release
       id: install-trivy
       if: ${{ inputs.trivy-scan == 'true' && inputs.matrix-mode != 'build' && runner.os == 'Linux' && (runner.arch == 'X64' || runner.arch == 'ARM64') }}
@@ -234,15 +241,17 @@ runs:
       shell: bash
       env:
         SCAN_OUTCOME: ${{ steps.trivy.outcome }}
+        OUTPUT_PREPARED: ${{ steps.clear-trivy-output.outcome }}
       run: |
         if [ "$SCAN_OUTCOME" != success ]; then
-          echo "## Trivy scan did not complete successfully ($SCAN_OUTCOME)" >> "$GITHUB_STEP_SUMMARY"
-        elif [ -s trivy-results.txt ]; then
+          echo "## Trivy scan failed or did not run ($SCAN_OUTCOME)" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        if [ "$OUTPUT_PREPARED" = success ] && [ -s trivy-results.txt ]; then
           echo "## Trivy Scan Results" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           cat trivy-results.txt >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-        else
+        elif [ "$SCAN_OUTCOME" = success ]; then
           echo "## Trivy scan completed; no table output was produced" >> "$GITHUB_STEP_SUMMARY"
         fi
 
