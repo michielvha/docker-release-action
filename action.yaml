@@ -56,7 +56,7 @@ inputs:
     description: 'Pinned Trivy scanner version'
     required: false
     # renovate: datasource=github-releases depName=aquasecurity/trivy
-    default: 'v0.69.3'
+    default: 'v0.76.2'
   trivy-severity:
     description: 'Trivy severity levels to report (comma-separated)'
     required: false
